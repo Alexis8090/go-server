@@ -1,0 +1,4 @@
+dmail.db
+dmail.db-shm
+dmail.db-wal
+go-server
