@@ -1,0 +1,18 @@
+globals/
+	globals.go
+svr/
+	sqlite.go
+go.mod
+biz/
+	models.go
+go.sum
+models/
+	user.go
+readme.md
+.gitignore
+arch/
+api/
+	api.go
+	dmail/
+		user.go
+main.go

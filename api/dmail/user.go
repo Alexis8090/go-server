@@ -20,6 +20,7 @@ func BuildRoutes(router fiber.Router) {
 	userGroup := router.Group("/user")
 	userGroup.Get("/q", q)
 	userGroup.Post("/c", c)
+   	userGroup.Delete("/bd", bd)
 }
 
 func q(c *fiber.Ctx) error {
@@ -94,10 +95,6 @@ func q(c *fiber.Ctx) error {
 	return c.JSON(users)
 }
 
-
-
-
-
 func c(c *fiber.Ctx) error {
 	payload := new(m.User)
 	if err := c.BodyParser(payload); err != nil {
@@ -131,3 +128,51 @@ func c(c *fiber.Ctx) error {
 }
 
 
+func bd(c *fiber.Ctx) error {
+	var payload struct {
+		IDs []int64 `json:"ids"`
+	}
+
+	if err := c.BodyParser(&payload); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Cannot parse JSON: " + err.Error(),
+		})
+	}
+
+	if len(payload.IDs) == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "No IDs provided for deletion",
+		})
+	}
+
+	// Build query with placeholders for each ID
+	placeholders := strings.Repeat("?,", len(payload.IDs))
+	placeholders = placeholders[:len(placeholders)-1] // Remove trailing comma
+
+	query := "UPDATE users SET deleted_at = CURRENT_TIMESTAMP WHERE id IN (" + placeholders + ")"
+
+	// Convert IDs to interface slice for query args
+	args := make([]interface{}, len(payload.IDs))
+	for i, id := range payload.IDs {
+		args[i] = id
+	}
+
+	// Execute the query
+	result, err := G.DmailDB.ExecContext(c.Context(), query, args...)
+	if err != nil {
+		log.Printf("Error batch deleting users: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Could not delete users: " + err.Error(),
+		})
+	}
+
+	// Get number of affected rows
+	affected, err := result.RowsAffected()
+	if err != nil {
+		log.Printf("Error getting affected rows: %v", err)
+	}
+
+	return c.JSON(fiber.Map{
+		"deleted": affected,
+	})
+}
